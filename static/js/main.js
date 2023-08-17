@@ -57,7 +57,9 @@ socket.on('connect', () => {
                     if (message !== '') {
                         socket.emit('message', {
                             sender_contact: userContact,
-                            receiver_contact: document.getElementById('connected-username').textContent,
+                            receiver_contact: receiverContact,
+                            // sender_username:senderUsername,
+                            // receiver_username:document.getElementById('connected-username').textContent,
                             message: message,
                         });
 

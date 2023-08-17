@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Include necessary meta tags, stylesheets, and title -->
+</head>
+
+<body>
+    <div class="container">
+        <h2>Welcome to the Chat Room, {{ username }}</h2>
+
+        <!-- New form to connect with other user -->
+        <form id="connect-form" class="form-inline mt-3" method="post" action="/chat">
+            <div class="form-group">
+                <label for="receiver_contact">Connect with:</label>
+                <input type="text" class="form-control" id="receiver_contact" name="receiver_contact"
+                       placeholder="Enter contact/user ID">
+            </div>
+            <button type="submit" class="btn btn-success" id="connect-button">Connect</button>
+        </form>
+
+        <div id="connected-user">
+            <strong>Connected User: </strong><span id="connected-username"></span> ({{ contact }})
+        </div>
+
+        <div id="chat-messages">
+            {% for message in messages %}
+            {% if message.sender_contact == contact %}
+            <<div class="my-message">
+                <strong>{{ message.sender_username }}: </strong>{{ message.message }}
+            </div>
+
+            {% else %}
+            <div class="other-message">
+                <strong>{{ message.sender_username }}: </strong>{{ message.message }}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        <form id="message-form" class="form-inline mt-3">
+            <div class="form-group">
+                <input type="text" class="form-control" id="message-input" placeholder="Type your message...">
+            </div>
+            <button type="submit" class="btn btn-primary" id="send-button">Send</button>
+        </form>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.2/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+</body>
+
+</html>

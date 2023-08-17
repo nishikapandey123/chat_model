@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <!-- Include necessary meta tags, stylesheets, and title -->
+</head>
+
+<body>
+  <!-- Your landing page content goes here -->
+  <a href="{{ url_for('login') }}" class="btn btn-primary">Login</a>
+  <a href="{{ url_for('register') }}" class="btn btn-secondary">Register</a>
+</body>
+
+</html>
+<!-- Include other necessary scripts and libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.3/socket.io.js"></script>
+<script>
+  const socket = io.connect();
+
+  socket.on('successful_login', (data) => {
+    // Redirect to the chat page or perform other actions
+    window.location.href = `/chat?contact=${data.contact}`;
+  });
+</script>

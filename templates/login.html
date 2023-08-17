@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <!-- Include necessary meta tags, stylesheets, and title -->
+</head>
+
+<body>
+  <div class="container">
+    <h2>Login</h2>
+    <form method="post" action="{{ url_for('login') }}">
+      <div class="form-group">
+        <label for="contact">Contact:</label>
+        <input type="text" class="form-control" id="contact" name="contact" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Login</button>
+    </form>
+  </div>
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async function (event) {
+      event.preventDefault();
+
+      const form = event.target;
+      const formData = new FormData(form);
+      
+      try {
+        const response = await fetch(form.action, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            // Redirect to the chat page or emit socket event here
+            window.location.href = `/chat?contact=${formData.get('contact')}`;
+            // Or, emit a socket event here using Socket.IO
+          } else {
+            console.error('User not found');
+          }
+        } else {
+          console.error('Error:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    });
+  </script>
+</body>
+
+</html>

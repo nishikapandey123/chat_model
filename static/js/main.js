@@ -43,8 +43,11 @@ socket.on('connect', () => {
                         });
                 });
 
+                const connectedUsernameElement = document.getElementById('connected-username');
                 const messageForm = document.getElementById('message-form');
                 messageForm.addEventListener('submit', function (event) {
+                    const receiverContact = document.getElementById('receiver_contact').value.trim();
+
                     event.preventDefault();
 
                     // Use the fetched contact number as sender_contact
@@ -62,7 +65,7 @@ socket.on('connect', () => {
                         messageInput.value = '';
 
                         // Fetch and display updated chat history after sending a message
-                        const receiverContact = document.getElementById('connected-username').textContent;
+                        connectedUsernameElement.textContent = receiverContact;
                         fetch(`/get_chat_history?receiver_contact=${receiverContact}`)
                             .then((response) => response.json())
                             .then((data) => {
@@ -71,11 +74,13 @@ socket.on('connect', () => {
                                     chatMessagesDiv.innerHTML = ''; // Clear existing messages
 
                                     data.messages.forEach((message) => {
+                                        const messagesDiv = document.getElementById('chat-messages');
                                         const messageDiv = document.createElement('div');
-                                        const senderLabel =
-                                            message.sender_contact === userContact ? 'You' : message.sender_username;
-                                        messageDiv.innerHTML = `<strong>${senderLabel}: </strong>${message.message}`;
-                                        chatMessagesDiv.appendChild(messageDiv);
+                                        
+                                        const senderLabel = contact === '{{ contact }}' ? 'You' : username;
+                                        messageDiv.innerHTML = `<strong>${senderLabel}: </strong>${message}`;
+                                        
+                                        messagesDiv.appendChild(messageDiv);
                                     });
                                 }
                             })

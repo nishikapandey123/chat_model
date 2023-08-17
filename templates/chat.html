@@ -2,43 +2,111 @@
 <html lang="en">
 
 <head>
-    <!-- Include necessary meta tags, stylesheets, and title -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creative Chat Room</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+
+        h2 {
+            color: #007bff;
+            margin-bottom: 20px;
+        }
+
+        .form-inline {
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-right: 10px;
+        }
+
+        #connect-button {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+
+        #connected-user {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #333;
+        }
+
+        #chat-messages {
+            margin-top: 20px;
+        }
+
+        .my-message,
+        .other-message {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            width: fit-content;
+            max-width: 70%;
+        }
+
+        .my-message {
+            background-color: #007bff;
+            color: #fff;
+            align-self: flex-end;
+        }
+
+        .other-message {
+            background-color: #f0f0f0;
+        }
+
+        #message-form {
+            margin-top: 20px;
+        }
+
+        #message-input {
+            width: 70%;
+            border-radius: 5px 0 0 5px;
+        }
+
+        #send-button {
+            background-color: #007bff;
+            border-color: #007bff;
+            border-radius: 0 5px 5px 0;
+        }
+    </style>
 </head>
 
 <body>
     <div class="container">
-        <h2>Welcome to the Chat Room, {{ username }}</h2>
+        <h2>Welcome to the Creative Chat Room, <span id="username">{{ username }}</span></h2>
 
-        <!-- New form to connect with other user -->
-        <form id="connect-form" class="form-inline mt-3" method="post" action="/chat">
+        <form id="connect-form" class="form-inline" method="post" action="/chat">
             <div class="form-group">
                 <label for="receiver_contact">Connect with:</label>
                 <input type="text" class="form-control" id="receiver_contact" name="receiver_contact"
-                       placeholder="Enter contact/user ID">
+                    placeholder="Enter contact/user ID">
             </div>
             <button type="submit" class="btn btn-success" id="connect-button">Connect</button>
         </form>
 
         <div id="connected-user">
-            <strong>Connected User: </strong><span id="connected-username"></span> ({{ contact }})
+            <strong>Connected User:</strong> <span id="connected-username">{{ contact }}</span>
         </div>
 
         <div id="chat-messages">
-            {% for message in messages %}
-            {% if message.sender_contact == contact %}
-            <<div class="my-message">
-                <strong>{{ message.sender_username }}: </strong>{{ message.message }}
-            </div>
-
-            {% else %}
-            <div class="other-message">
-                <strong>{{ message.sender_username }}: </strong>{{ message.message }}
-            </div>
-            {% endif %}
-            {% endfor %}
+            <!-- Messages will be dynamically generated here -->
         </div>
 
-        <form id="message-form" class="form-inline mt-3">
+        <form id="message-form" class="form-inline">
             <div class="form-group">
                 <input type="text" class="form-control" id="message-input" placeholder="Type your message...">
             </div>
@@ -47,7 +115,6 @@
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.2/socket.io.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-
 </body>
 
 </html>

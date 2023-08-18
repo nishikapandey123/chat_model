@@ -63,15 +63,6 @@ socket.on('connect', () => {
                 const messageInput = document.getElementById('message-input');
                 const message = messageInput.value.trim();
 
-<<<<<<< Updated upstream
-                    if (message !== '') {
-                        socket.emit('message', {
-                            sender_contact: userContact,
-                            receiver_contact: receiverContact,
-                            // sender_username:senderUsername,
-                            // receiver_username:document.getElementById('connected-username').textContent,
-                            message: message,
-=======
                 if (message !== '') {
                     socket.emit('message', {
                         sender_contact: userContact,
@@ -116,7 +107,6 @@ socket.on('connect', () => {
                         })
                         .catch(error => {
                             console.error('Error fetching username:', error);
->>>>>>> Stashed changes
                         });
                 }
             });

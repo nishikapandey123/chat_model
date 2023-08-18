@@ -3,36 +3,46 @@ const socket = io.connect();
 socket.on('connect', () => {
     console.log('Socket connected');
 
-    // Fetch the user's contact number from the server
-    fetch('/get_user_contact')
+    const userContactPromise = fetch('/get_user_contact')
         .then(response => response.json())
-        .then(data => {
-            if (data.contact) {
-                const userContact = data.contact;
-                console.log('User Contact:', userContact); // Debug: Log user's contact
+        .then(data => data.contact)
+        .catch(error => {
+            console.error('Error fetching user contact:', error);
+        });
 
-                socket.on('message', (data) => {
-                    console.log('Received message:', data);
+    userContactPromise.then(userContact => {
+        if (userContact) {
+            console.log('User Contact:', userContact);
 
-                    // Fetch the sender's username using their contact number
+            const connectedUsernameElement = document.getElementById('connected-username');
+            const messageForm = document.getElementById('message-form');
+            const chatMessagesDiv = document.getElementById('chat-messages');
+
+            socket.on('message', (data) => {
+                console.log('Received message:', data);
+
+                const receiverContactInput = document.getElementById('receiver_contact');
+                const currentReceiverContact = receiverContactInput.value.trim();
+
+                if (currentReceiverContact === data.sender_contact || currentReceiverContact === data.receiver_contact) {
                     fetch(`/get_username?contact=${data.sender_contact}`)
                         .then(response => response.json())
                         .then(usernameData => {
                             const senderUsername = usernameData.success ? usernameData.username : 'Unknown User';
 
-                            // Fetch the receiver's username using their contact number
                             fetch(`/get_username?contact=${data.receiver_contact}`)
                                 .then(response => response.json())
                                 .then(receiverUsernameData => {
                                     const receiverUsername = receiverUsernameData.success ? receiverUsernameData.username : 'Unknown User';
 
-                                    // Update the chat messages in the UI
                                     const messagesDiv = document.getElementById('chat-messages');
                                     const messageDiv = document.createElement('div');
                                     const senderLabel = data.sender_contact === userContact ? 'You' : senderUsername;
                                     const receiverLabel = data.receiver_contact === userContact ? 'You' : receiverUsername;
                                     messageDiv.innerHTML = `<strong>${senderLabel} to ${receiverLabel}: </strong>${data.message}`;
                                     messagesDiv.appendChild(messageDiv);
+
+                                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
                                 })
                                 .catch(error => {
                                     console.error('Error fetching receiver username:', error);
@@ -41,19 +51,19 @@ socket.on('connect', () => {
                         .catch(error => {
                             console.error('Error fetching sender username:', error);
                         });
-                });
+                }
+            });
 
-                const connectedUsernameElement = document.getElementById('connected-username');
-                const messageForm = document.getElementById('message-form');
-                messageForm.addEventListener('submit', function (event) {
-                    const receiverContact = document.getElementById('receiver_contact').value.trim();
+            messageForm.addEventListener('submit', function (event) {
+                event.preventDefault();
 
-                    event.preventDefault();
+                const receiverContactInput = document.getElementById('receiver_contact');
+                const receiverContact = receiverContactInput.value.trim();
 
-                    // Use the fetched contact number as sender_contact
-                    const messageInput = document.getElementById('message-input');
-                    const message = messageInput.value.trim();
+                const messageInput = document.getElementById('message-input');
+                const message = messageInput.value.trim();
 
+<<<<<<< Updated upstream
                     if (message !== '') {
                         socket.emit('message', {
                             sender_contact: userContact,
@@ -61,92 +71,82 @@ socket.on('connect', () => {
                             // sender_username:senderUsername,
                             // receiver_username:document.getElementById('connected-username').textContent,
                             message: message,
+=======
+                if (message !== '') {
+                    socket.emit('message', {
+                        sender_contact: userContact,
+                        receiver_contact: receiverContact,
+                        message: message,
+                    });
+
+                    const messagesDiv = document.getElementById('chat-messages');
+                    const messageDiv = document.createElement('div');
+                    const senderLabel = 'You';  // Assuming you always show the sender as 'You' for your own messages
+                    const receiverLabel = receiverContact === userContact ? 'You' : receiverContact;  // Update this as per your logic
+                    messageDiv.innerHTML = `<strong>${senderLabel} : </strong>${message}`;
+                    messagesDiv.appendChild(messageDiv);
+
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+                    messageInput.value = '';
+                }
+            });
+
+            document.getElementById('connect-form').addEventListener('submit', function (event) {
+                event.preventDefault();
+
+                const connectContactInput = document.getElementById('receiver_contact');
+                const connectContact = connectContactInput.value.trim();
+
+                if (connectContact !== '') {
+                    fetch(`/user_exists?contact=${connectContact}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.exists) {
+                                const connectedUsername = data.username;
+                                connectedUsernameElement.textContent = connectedUsername;
+
+                                const sendButton = document.getElementById('send-button');
+                                sendButton.setAttribute('data-receiver-contact', connectContact);
+
+                                fetchAndDisplayChatHistory(connectContact);
+                            } else {
+                                console.log('User not found');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching username:', error);
+>>>>>>> Stashed changes
                         });
+                }
+            });
 
-                        // Clear the message input
-                        messageInput.value = '';
+            function fetchAndDisplayChatHistory(receiverContact) {
+                connectedUsernameElement.textContent = receiverContact;
+                fetch(`/get_chat_history?receiver_contact=${receiverContact}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const chatMessagesDiv = document.getElementById('chat-messages');
+                            chatMessagesDiv.innerHTML = '';
 
-                        // Fetch and display updated chat history after sending a message
-                        connectedUsernameElement.textContent = receiverContact;
-                        fetch(`/get_chat_history?receiver_contact=${receiverContact}`)
-                            .then((response) => response.json())
-                            .then((data) => {
-                                if (data.success) {
-                                    const chatMessagesDiv = document.getElementById('chat-messages');
-                                    chatMessagesDiv.innerHTML = ''; // Clear existing messages
+                            data.messages.forEach(message => {
+                                const messageDiv = document.createElement('div');
+                                const senderLabel = message.sender_contact === userContact ? 'You' : message.sender_username;
+                                messageDiv.innerHTML = `<strong>${senderLabel}: </strong>${message.message}`;
+                                chatMessagesDiv.appendChild(messageDiv);
 
-                                    data.messages.forEach((message) => {
-                                        const messagesDiv = document.getElementById('chat-messages');
-                                        const messageDiv = document.createElement('div');
-                                        
-                                        const senderLabel = contact === '{{ contact }}' ? 'You' : username;
-                                        messageDiv.innerHTML = `<strong>${senderLabel}: </strong>${message}`;
-                                        
-                                        messagesDiv.appendChild(messageDiv);
-                                    });
-                                }
-                            })
-                            .catch((error) => {
-                                console.error('Error fetching chat history:', error);
+                                chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
                             });
-                    }
-                });
-
-                document.getElementById('connect-form').addEventListener('submit', function (event) {
-                    event.preventDefault();
-
-                    const connectContactInput = document.getElementById('receiver_contact');
-                    const connectContact = connectContactInput.value.trim();
-
-                    if (connectContact !== '') {
-                        // Fetch the connected user's username from the server
-                        fetch(`/user_exists?contact=${connectContact}`)
-                            .then((response) => response.json())
-                            .then((data) => {
-                                if (data.exists) {
-                                    const connectedUsername = data.username;
-                                    const connectedUsernameElement = document.getElementById('connected-username');
-                                    connectedUsernameElement.textContent = connectedUsername;
-
-                                    // Set the receiver_contact for sending messages
-                                    const sendButton = document.getElementById('send-button');
-                                    sendButton.setAttribute('data-receiver-contact', connectContact);
-
-                                    // Fetch and display chat history for the connected user
-                                    fetch(`/get_chat_history?receiver_contact=${connectContact}`)
-                                        .then((response) => response.json())
-                                        .then((data) => {
-                                            if (data.success) {
-                                                const chatMessagesDiv = document.getElementById('chat-messages');
-                                                chatMessagesDiv.innerHTML = ''; // Clear existing messages
-
-                                                data.messages.forEach((message) => {
-                                                    const messageDiv = document.createElement('div');
-                                                    const senderLabel =
-                                                        message.sender_contact === userContact ? 'You' : message.sender_username;
-                                                    messageDiv.innerHTML = `<strong>${senderLabel}: </strong>${message.message}`;
-                                                    chatMessagesDiv.appendChild(messageDiv);
-                                                });
-                                            }
-                                        })
-                                        .catch((error) => {
-                                            console.error('Error fetching chat history:', error);
-                                        });
-                                } else {
-                                    console.log('User not found');
-                                }
-                            })
-                            .catch((error) => {
-                                console.error('Error fetching username:', error);
-                            });
-                    }
-                });
-
-            } else {
-                console.log('User contact not available');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching chat history:', error);
+                    });
             }
-        })
-        .catch(error => {
-            console.error('Error fetching user contact:', error);
-        });
+
+        } else {
+            console.log('User contact not available');
+        }
+    });
 });

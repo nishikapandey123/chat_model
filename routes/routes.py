@@ -1,5 +1,5 @@
-from flask import Flask, render_template, jsonify, request, url_for, redirect, session
-from pymongo import MongoClient
+from flask import Flask, render_template, jsonify, request, url_for, redirect, session, abort
+from pymongo import MongoClient,errors
 from flask_socketio import SocketIO, emit
 import datetime
 import json
@@ -42,18 +42,22 @@ def configure_routes(app, socketio):
 
     @app.route('/login', methods=['GET', 'POST'])
     def login():
-        if request.method == 'POST':
-            contact = request.form.get('contact')
+        try:
+            if request.method == 'POST':
+                contact = request.form.get('contact')
+                
+                user = users_collection.find_one({'contact': contact})
+                print("login")
+                if user:
+                    session['contact'] = contact  # Store contact in session
+                    print("login session")
+                    return jsonify({'success': True, 'message': 'User logged in'})
+                
+                return jsonify({'success': False, 'message': 'User not found'})
             
-            user = users_collection.find_one({'contact': contact})
-            
-            if user:
-                session['contact'] = contact  # Store contact in session
-                return redirect(url_for('chat'))  # Redirect to the chat room page
-            
-            return jsonify({'success': False, 'message': 'User not found'})
-        
-        return render_template('login.html')
+            return render_template('login.html')
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
     @app.route('/fetch_data')
     def fetch_data():
@@ -86,57 +90,58 @@ def configure_routes(app, socketio):
 
     @app.route('/get_chat_history', methods=['GET'])
     def get_chat_history():
-        print("i am chat history")
-        receiver_contact = request.args.get('receiver_contact')
-        sender_contact = session.get('contact')
+        try:
+            receiver_contact = request.args.get('receiver_contact')
+            sender_contact = session.get('contact')
 
-        chat_document = messages_collection.find_one({
-            '$or': [
-                {'participants': [sender_contact, receiver_contact]},
-                {'participants': [receiver_contact, sender_contact]}
-            ]
-        })
+            chat_document = messages_collection.find_one({
+                '$or': [
+                    {'participants': [sender_contact, receiver_contact]},
+                    {'participants': [receiver_contact, sender_contact]}
+                ]
+            })
 
-        if chat_document:
-            messages = chat_document.get('messages')
-            return jsonify({'success': True, 'messages': messages})
-        else:
-            return jsonify({'success': False, 'message': 'Chat history not found'})
-
-
+            if chat_document:
+                messages = chat_document.get('messages')
+                return jsonify({'success': True, 'messages': messages})
+            else:
+                abort(404, description='Chat history not found')
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
     @app.route('/chat', methods=['GET', 'POST'])
     def chat():
-        print("I am Chat")
-        contact = session.get('contact')
-        user = users_collection.find_one({'contact': contact})
+        try:
+            contact = session.get('contact')
+            user = users_collection.find_one({'contact': contact})
 
-        if user:
-            username = user.get('username')
+            if user:
+                username = user.get('username')
 
-            receiver_contact = request.args.get('contact')  # Extract receiver's contact from query parameter
+                receiver_contact = request.args.get('contact')  # Extract receiver's contact from query parameter
 
-            if receiver_contact:
-                # Retrieve chat history
-                chat_document = messages_collection.find_one({
-                    '$or': [
-                        {'participants': [contact, receiver_contact]},
-                        {'participants': [receiver_contact, contact]}
-                    ]
-                })
+                if receiver_contact:
+                    # Retrieve chat history
+                    chat_document = messages_collection.find_one({
+                        '$or': [
+                            {'participants': [contact, receiver_contact]},
+                            {'participants': [receiver_contact, contact]}
+                        ]
+                    })
 
-                if chat_document:
-                    messages = chat_document.get('messages')
+                    if chat_document:
+                        messages = chat_document.get('messages')
+                    else:
+                        messages = []
+
+                    return render_template('chat.html', username=username, contact=contact,
+                                        receiver_contact=receiver_contact, messages=messages)
                 else:
-                    messages = []
-
-                return render_template('chat.html', username=username, contact=contact,
-                                    receiver_contact=receiver_contact, messages=messages)
+                    return render_template('chat.html', username=username, contact=contact)
             else:
-                return render_template('chat.html', username=username, contact=contact)
-
-        else:
-            return redirect(url_for('login'))
+                return redirect(url_for('login'))
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
 
     @socketio.on('connect')
@@ -148,65 +153,6 @@ def configure_routes(app, socketio):
         print('Client disconnected')
 
 
-    # @socketio.on('message')
-    # def handle_message(data):
-    #     print('Received message:', data)
-    #     sender_contact = data['sender_contact']
-    #     receiver_contact = data['receiver_contact']
-
-    #     sender = users_collection.find_one({'contact': sender_contact})
-    #     if sender:
-    #         sender_username = sender.get('username')
-    #         message_data = {
-    #             'sender_contact': sender_contact,
-    #             'receiver_contact': receiver_contact,
-    #             'sender_username': sender_username,
-    #             'message': data['message'],
-    #             'timestamp': datetime.datetime.now()
-    #         }
-    #     else:
-    #         sender_username = 'Unknown User'
-    #         message_data = {
-    #             'sender_contact': sender_contact,
-    #             'receiver_contact': receiver_contact,
-    #             'sender_username': sender_username,
-    #             'message': "Sender not found",  # Or any appropriate message
-    #             'timestamp': datetime.datetime.now()
-    #         }
-
-    # # Rest of your message handling logic
-
-
-    #     message_data = {
-    #         'sender_contact': sender_contact,
-    #         'receiver_contact': receiver_contact,
-    #         'sender_username': sender_username,
-    #         'message': data['message'],
-    #         'timestamp': datetime.datetime.now()
-    #     }
-
-    #     # Update chat history or create a new document
-    #     messages_collection.update_one(
-    #         {
-    #             '$or': [
-    #                 {'participants': [sender_contact, receiver_contact]},
-    #                 {'participants': [receiver_contact, sender_contact]}
-    #             ]
-    #         },
-    #         {
-    #             '$push': {'messages': message_data},
-    #             '$setOnInsert': {'participants': [sender_contact, receiver_contact]}
-    #         },
-    #         upsert=True
-    #     )
-
-
-
-    #     # Emit the message back to the sender and receiver
-    #     emit('message', message_data, room=f'{sender_contact}_{receiver_contact}')
-    # # You can also emit to the sender's room to update their own chat window
-    #     emit('message', message_data, room=f'{sender_contact}')
-    #     emit('message', message_data, room=f'{receiver_contact}')
 
     @app.route('/get_user_contact')
     def get_user_contact():
@@ -216,53 +162,55 @@ def configure_routes(app, socketio):
 
     @socketio.on('message')
     def handle_message(data):
-        print('Received message:', data)
-        sender_contact = data['sender_contact']
-        receiver_contact = data['receiver_contact']
+        try:
+            print('Received message:', data)
+            
+            sender_contact = data['sender_contact']
+            receiver_contact = data['receiver_contact']
 
-        sender = users_collection.find_one({'contact': sender_contact})
-        receiver = users_collection.find_one({'contact': receiver_contact})
+            sender = users_collection.find_one({'contact': sender_contact})
+            receiver = users_collection.find_one({'contact': receiver_contact})
 
-        if sender and receiver:
-            sender_username = sender.get('username')
-            receiver_username = receiver.get('username')
-        else:
-            sender_username = 'Unknown User'
-            receiver_username = 'Unknown User'
+            if sender and receiver:
+                sender_username = sender.get('username')
+                receiver_username = receiver.get('username')
+            else:
+                sender_username = 'Unknown User'
+                receiver_username = 'Unknown User'
 
-        message_data = {
-            'sender_contact': sender_contact,
-            'receiver_contact': receiver_contact,
-            'sender_username': sender_username,
-            'receiver_username': receiver_username,
-            'message': data['message'],
-            'timestamp': datetime.datetime.now()
-        }
+            message_data = {
+                'sender_contact': sender_contact,
+                'receiver_contact': receiver_contact,
+                'sender_username': sender_username,
+                'receiver_username': receiver_username,
+                'message': data['message'],
+                'timestamp': datetime.datetime.now()
+            }
 
-        # Update chat history or create a new document
-        messages_collection.update_one(
-            {
-                '$or': [
-                    {'participants': [sender_contact, receiver_contact]},
-                    {'participants': [receiver_contact, sender_contact]}
-                ]
-            },
-            {
-                '$push': {'messages': message_data},
-                '$setOnInsert': {'participants': [sender_contact, receiver_contact]}
-            },
-            upsert=True
-        )
+            # Update chat history or create a new document
+            messages_collection.update_one(
+                {
+                    '$or': [
+                        {'participants': [sender_contact, receiver_contact]},
+                        {'participants': [receiver_contact, sender_contact]}
+                    ]
+                },
+                {
+                    '$push': {'messages': message_data},
+                    '$setOnInsert': {'participants': [sender_contact, receiver_contact]}
+                },
+                upsert=True
+            )
 
-        # Emit the message back to the sender and receiver
-        emit('message', message_data, room=f'{sender_contact}_{receiver_contact}')
-        emit('message', message_data, room=f'{sender_contact}')
-        emit('message', message_data, room=f'{receiver_contact}')
+            # Emit the message back to the sender and receiver
+            emit('message', message_data, room=f'{sender_contact}_{receiver_contact}')
+            emit('message', message_data, room=f'{sender_contact}')
+            emit('message', message_data, room=f'{receiver_contact}')
 
-    # ... (rest of your existing routes and code)
-
-
-    
+        except errors.PyMongoError as e:
+            print('MongoDB error:', e)
+        except Exception as e:
+            print('Error:', e)
 
 
 

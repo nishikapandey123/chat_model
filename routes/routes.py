@@ -200,7 +200,7 @@ def configure_routes(app, socketio):
             return jsonify({'error': str(e)}), 500
 
 
-    @socketio.on('connect')
+    @socketio.on('connec t')
     def on_connect():
         print('Client connected')
 
@@ -270,6 +270,68 @@ def configure_routes(app, socketio):
         except Exception as e:
             print('Error:', e)
 
+
+    #from sender side
+    @socketio.on('audio_call')
+    def audio_call(data):
+        try:
+            recipient = data['recipient']
+            room = active_calls.get(recipient)
+
+            if room:
+                emit('incoming_call', {'recipient': recipient}, room=room)
+            else:
+                emit('call_not_found', room=request.sid)
+        except Exception as e:
+            print('Error:', e)
+
+    @socketio.on('hangup_call')
+    def hangup_call(data):
+        try:
+            recipient = data['recipient']
+            room = active_calls.get(recipient)
+
+            if room:
+                emit('hangup', room=room)
+            else:
+                emit('call_not_found', room=request.sid)
+        except Exception as e:
+            print('Error:', e)
+
+
+    #from reciever side
+    active_calls ={}
+    @socketio.on('accept_call')
+    def accept_call(data):
+        try:
+            recipient = data['recipient']
+            room = active_calls.get(recipient)
+
+            if room:
+                active_calls[recipient] = request.sid
+                emit('call_accepted', room=request.sid)
+            else:
+                emit('call_not_found', room=request.sid)
+        except Exception as e:
+            print('Error:', e)
+
+    @socketio.on('reject_call')
+    def reject_call(data):
+        try:
+            recipient = data['recipient']
+            emit('call_rejected', room=active_calls.get(recipient))
+        except Exception as e:
+            print('Error:', e)
+
+    @socketio.on('disconnect')
+    def on_disconnect():
+        try:
+            contact = session.get('contact')
+            if contact in active_calls:
+                del active_calls[contact]
+                emit('call_disconnected', room=request.sid)
+        except Exception as e:
+            print('Error:', e)
 
     @app.route('/logout')
     def logout():

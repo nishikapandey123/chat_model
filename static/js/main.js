@@ -3,6 +3,14 @@ const socket = io.connect();
 socket.on('connect', () => {
     console.log('Socket connected');
 
+    window.addEventListener('resize', function() {
+        const messageInputContainer = document.getElementById('message-input-container');
+        const connectForm = document.getElementById('connect-form');
+    
+        messageInputContainer.style.top = 0;
+        connectForm.style.bottom = 0;
+    });
+    
     const userContactPromise = fetch('/get_user_contact')
         .then(response => response.json())
         .then(data => data.contact)
@@ -88,6 +96,27 @@ socket.on('connect', () => {
 
                 const connectContactInput = document.getElementById('receiver_contact');
                 const connectContact = connectContactInput.value.trim();
+                
+                if (connectContact !== '') {
+                    fetch(`/connect_user`, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            receiver_contact: connectContact
+                        })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                const connectedUsername = data.username;
+                                connectedUsernameElement.textContent = connectedUsername;
+                            } else {
+                                console.log('Error connecting user');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error connecting user:', error);
+                        });
+                }
 
                 if (connectContact !== '') {
                     fetch(`/user_exists?contact=${connectContact}`)
@@ -113,6 +142,29 @@ socket.on('connect', () => {
 
             function fetchAndDisplayChatHistory(receiverContact) {
                 connectedUsernameElement.textContent = receiverContact;
+
+                fetch(`/get_connection_history?receiver_contact=${receiverContact}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const chatMessagesDiv = document.getElementById('chat-messages');
+                        chatMessagesDiv.innerHTML = '';
+        
+                        data.messages.forEach(message => {
+                            const messageDiv = document.createElement('div');
+                            const senderLabel = message.sender_contact === userContact ? 'You' : message.sender_username;
+                            messageDiv.innerHTML = `<strong>${senderLabel}: </strong>${message.message}`;
+                            chatMessagesDiv.appendChild(messageDiv);
+        
+                            chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching chat history:', error);
+                });
+
+                
                 fetch(`/get_chat_history?receiver_contact=${receiverContact}`)
                     .then(response => response.json())
                     .then(data => {

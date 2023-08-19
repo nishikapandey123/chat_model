@@ -1,6 +1,7 @@
-from flask import Flask, render_template, jsonify, request, url_for, redirect, session, abort
+from flask import Flask, render_template, jsonify, request, url_for, redirect, session, abort,flash
 from pymongo import MongoClient,errors
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, send
+from flask_login import logout_user
 import datetime
 import json
 
@@ -10,7 +11,7 @@ client = MongoClient("mongodb://localhost:27017/")
 db = client["chat"]
 users_collection = db["users"]
 messages_collection = db["messages"]
-
+user_connections = db["user-connection"]
 
 
 def configure_routes(app, socketio):
@@ -87,6 +88,61 @@ def configure_routes(app, socketio):
         else:
             return jsonify({'success': False})
 
+
+    #Establishing connection and history
+    @app.route('/get_connection_history')
+    def get_connection_history():
+        try:
+            userContact = session.get('contact')
+
+            if userContact:
+                connection_history = user_connections.find({
+                    '$or': [
+                        # {'sender_contact': userContact},
+                        {'receiver_contact': userContact}
+                    ]
+                })
+
+                return jsonify({'success': True, 'connection_history': list(connection_history)})
+            else:
+                return jsonify({'success': False, 'message': 'User contact not available'})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+
+    @app.route('/connect_user', methods=['POST'])
+    def connect_user():
+        try:
+            sender_contact = session.get('contact')
+            receiver_contact = request.form.get('receiver_contact')
+
+            if sender_contact and receiver_contact:
+                user_connections.insert_one({
+                    'sender_contact': sender_contact,
+                    'receiver_contact': receiver_contact,
+                    'timestamp': datetime.datetime.now()
+                })
+
+                return jsonify({'success': True, 'message': 'User connected successfully'})
+            else:
+                return jsonify({'success': False, 'message': 'Invalid sender or receiver contact'})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/search_users')
+    def search_users():
+        try:
+            query = request.args.get('query')
+            users = list(users_collection.find({
+                '$or': [
+                    # {'username': {'$regex': query, '$options': 'i'}},
+                    {'contact': {'$regex': query, '$options': 'i'}}
+                ]
+            }, {'_id': 0}))
+
+            return jsonify({'success': True, 'users': users})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
     @app.route('/get_chat_history', methods=['GET'])
     def get_chat_history():
@@ -168,6 +224,8 @@ def configure_routes(app, socketio):
             sender_contact = data['sender_contact']
             receiver_contact = data['receiver_contact']
 
+            # send(data)
+
             sender = users_collection.find_one({'contact': sender_contact})
             receiver = users_collection.find_one({'contact': receiver_contact})
 
@@ -212,6 +270,14 @@ def configure_routes(app, socketio):
         except Exception as e:
             print('Error:', e)
 
+
+    @app.route('/logout')
+    def logout():
+
+        # logout_user()
+        # flash("You have logged out successfully", 'success')
+        session.clear()
+        return redirect('/login')
 
 
 
